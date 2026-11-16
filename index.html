@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zametkalar</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #0f0f11;
+            --card-border: #1f1f22;
+            --primary: #6d28d9;
+            --text-white: #ffffff;
+            --text-gray: #9ca3af;
+            --red: #ef4444;
+            --yellow: #fbbf24;
+            --green: #22c55e;
+            --blue: #3b82f6;
+            --cyan-accent: #00f3ff;
+            --badge-border: #7c3aed;
+            --badge-text: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-white); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+        .container { width: 100%; max-width: 600px; display: flex; flex-direction: column; padding-bottom: 80px; }
+
+        header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; }
+        .header-text h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+        .add-btn { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .add-btn:hover { filter: brightness(1.2); box-shadow: 0 0 15px rgba(109, 40, 217, 0.4); }
+
+        /* Zametkalar ro'yxati */
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .habit-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: 0.3s;
+            position: relative;
+            z-index: 1;
+        }
+
+        .habit-card.menu-open {
+            z-index: 100;
+            border-color: #444;
+        }
+
+        .habit-card:hover {
+            border-color: #333;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+
+        /* Sarlavha badge - Times New Roman va izohdan sal kattaroq */
+        .habit-title-badge {
+            background: transparent;
+            border: 1px solid var(--badge-border);
+            color: var(--badge-text);
+            font-family: 'Times New Roman', Times, serif;
+            font-weight: 700;
+            font-size: 16px; 
+            padding: 6px 12px;
+            border-radius: 8px;
+            min-width: 120px;
+            max-width: 160px;
+            text-align: center;
+            word-break: break-word;
+            flex-shrink: 0;
+        }
+
+        .habit-body {
+            font-size: 14px;
+            color: var(--text-gray);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            flex: 1;
+        }
+
+        /* Menyuni ochish tugmasi va popover */
+        .menu-container {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .menu-toggle-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-gray);
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+
+        .menu-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-color: #444;
+        }
+
+        .action-dropdown {
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background: #16161a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 6px;
+            display: flex;
+            gap: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-5px);
+            transition: 0.2s ease;
+        }
+
+        .action-dropdown.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        .icon-btn { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        
+        .copy-btn { color: var(--blue); background: rgba(59, 130, 246, 0.1); }
+        .edit-btn { color: var(--yellow); background: rgba(251, 191, 36, 0.1); }
+        .delete-btn { color: var(--red); background: rgba(239, 68, 68, 0.1); }
+
+        .icon-btn:hover { filter: brightness(1.3); }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--text-gray);
+            font-size: 14px;
+            border: 1px dashed var(--card-border);
+            border-radius: 12px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        /* Modal oyna (Qo'shish / Tahrirlash uchun) */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000; opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-box {
+            width: 90%; max-width: 420px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex; flex-direction: column; gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .modal-title { font-size: 18px; font-weight: 700; }
+
+        .modal-input, .modal-textarea {
+            width: 100%; background: #000; border: 1px solid var(--card-border);
+            border-radius: 10px; padding: 12px; color: white; font-size: 14px; outline: none;
+            transition: 0.3s;
+        }
+        .modal-input:focus, .modal-textarea:focus { border-color: var(--cyan-accent); box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+        .modal-textarea { min-height: 120px; resize: vertical; }
+
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-btn { padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
+        .btn-cancel { background: #1f1f22; color: var(--text-gray); }
+        .btn-save { background: var(--cyan-accent); color: #000; font-weight: 700; }
+        .btn-save:hover { box-shadow: 0 0 15px rgba(0, 243, 255, 0.4); }
+
+        /* BOTTOM PANEL STYLES */
+        .bottom-panel {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: rgba(15, 15, 17, 0.7); backdrop-filter: blur(15px);
+            border-top: 1px solid var(--card-border);
+            padding: 15px; display: flex; justify-content: center; align-items: center;
+            z-index: 1500;
+        }
+        .footer-content { display: flex; align-items: center; gap: 15px; }
+        .edition-text { font-size: 11px; color: #555; letter-spacing: 4px; font-weight: 800; user-select: none; }
+        .tg-link { color: #229ED9; display: flex; align-items: center; transition: 0.3s; text-decoration: none; }
+        .tg-link:hover { transform: translateY(-3px); filter: brightness(1.2); }
+        .tg-link svg { width: 20px; height: 20px; fill: currentColor; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <div class="header-text">
+                <h1>Zametkalar</h1>
+            </div>
+            <button class="add-btn" onclick="openModal()">+ Qo'shish</button>
+        </header>
+
+        <!-- Zametkalar ro'yxati -->
+        <div id="notes-container" class="notes-list"></div>
+    </div>
+
+    <!-- Modal Oyna (Qo'shish / Tahrirlash) -->
+    <div id="noteModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title" id="modalTitle">Yangi zametka</div>
+            <input type="hidden" id="editKey">
+            <input type="text" id="noteTitleInput" class="modal-input" placeholder="Sarlavha...">
+            <textarea id="noteContentInput" class="modal-textarea" placeholder="Zametka matnini yozing..."></textarea>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-cancel" onclick="closeModal()">Bekor qilish</button>
+                <button class="modal-btn btn-save" onclick="saveNote()">Saqlash</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pastki panel -->
+    <div class="bottom-panel">
+        <div class="footer-content">
+            <div class="edition-text">CHINGIZBEK EDITION</div>
+            <a href="https://t.me/chingizbe_1" target="_blank" class="tg-link">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.35-.01-1.02-.2-1.52-.37-.62-.2-1.11-.31-1.07-.65.02-.18.27-.36.75-.55 2.94-1.28 4.91-2.12 5.89-2.52 2.81-1.15 3.39-1.35 3.77-1.35.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+            </a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import {
+            getDatabase,
+            ref,
+            push,
+            set,
+            onValue,
+            remove
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqwKLpKR4soGNkuLUhT48nCB8uGLeD5N8",
+            authDomain: "my-admin-app-c6265.firebaseapp.com",
+            databaseURL: "https://my-admin-app-c6265-default-rtdb.firebaseio.com",
+            projectId: "my-admin-app-c6265",
+            storageBucket: "my-admin-app-c6265.firebasestorage.app",
+            messagingSenderId: "402962413862",
+            appId: "1:402962413862:web:9bfd69fe2247e7c4f9e9e7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let notes = [];
+        const notesRef = ref(db, 'notes');
+
+        const svgs = {
+            dots: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>`,
+            copy: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+            edit: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+            delete: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`
+        };
+
+        // Firebase-dan ma'lumotlarni real vaqtda o'qib olish
+        onValue(notesRef, (snapshot) => {
+            const data = snapshot.val();
+            notes = [];
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    notes.push({ id: key, ...data[key] });
+                });
+                // Yangi qo'shilganlari tepada chiqishi uchun teskari tartiblash
+                notes.reverse();
+            }
+            renderNotes();
+        });
+
+        function renderNotes() {
+            const container = document.getElementById('notes-container');
+            container.innerHTML = '';
+
+            if (notes.length === 0) {
+                container.innerHTML = `<div class="empty-state">Hozircha zametkalar yo'q</div>`;
+                return;
+            }
+
+            notes.forEach((n, index) => {
+                const card = document.createElement('div');
+                card.className = 'habit-card';
+                card.id = `card-${index}`;
+                card.innerHTML = `
+                    <div class="habit-title-badge">${escapeHtml(n.title)}</div>
+                    <div class="habit-body">${escapeHtml(n.content)}</div>
+                    <div class="menu-container">
+                        <button class="menu-toggle-btn" onclick="toggleMenu(event, '${index}')">
+                            ${svgs.dots}
+                        </button>
+                        <div class="action-dropdown" id="dropdown-${index}">
+                            <button class="icon-btn copy-btn" onclick="copyNote('${n.id}')" title="Nusxalash">${svgs.copy}</button>
+                            <button class="icon-btn edit-btn" onclick="openModal('${n.id}')" title="Tahrirlash">${svgs.edit}</button>
+                            <button class="icon-btn delete-btn" onclick="deleteNote('${n.id}')" title="O'chirish">${svgs.delete}</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.toggleMenu = function(event, index) {
+            event.stopPropagation();
+            const allDropdowns = document.querySelectorAll('.action-dropdown');
+            const allCards = document.querySelectorAll('.habit-card');
+            
+            const targetDropdown = document.getElementById(`dropdown-${index}`);
+            const targetCard = document.getElementById(`card-${index}`);
+
+            const isOpen = targetDropdown.classList.contains('active');
+
+            allDropdowns.forEach(d => d.classList.remove('active'));
+            allCards.forEach(c => c.classList.remove('menu-open'));
+
+            if (!isOpen) {
+                targetDropdown.classList.add('active');
+                targetCard.classList.add('menu-open');
+            }
+        }
+
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.action-dropdown').forEach(d => d.classList.remove('active'));
+            document.querySelectorAll('.habit-card').forEach(c => c.classList.remove('menu-open'));
+        });
+
+        window.openModal = function(id = null) {
+            const modal = document.getElementById('noteModal');
+            const titleEl = document.getElementById('modalTitle');
+            const editInput = document.getElementById('editKey');
+            const titleInput = document.getElementById('noteTitleInput');
+            const contentInput = document.getElementById('noteContentInput');
+
+            modal.classList.add('active');
+
+            if (id !== null) {
+                const note = notes.find(n => n.id === id);
+                if (note) {
+                    titleEl.innerText = "Zametkani tahrirlash";
+                    editInput.value = note.id;
+                    titleInput.value = note.title;
+                    contentInput.value = note.content;
+                }
+            } else {
+                titleEl.innerText = "Yangi zametka";
+                editInput.value = '';
+                titleInput.value = '';
+                contentInput.value = '';
+            }
+            titleInput.focus();
+        }
+
+        window.closeModal = function() {
+            document.getElementById('noteModal').classList.remove('active');
+        }
+
+        window.saveNote = function() {
+            const editKey = document.getElementById('editKey').value;
+            const title = document.getElementById('noteTitleInput').value.trim();
+            const content = document.getElementById('noteContentInput').value.trim();
+
+            if (!title && !content) {
+                alert("Sarlavha yoki matn kiriting!");
+                return;
+            }
+
+            if (editKey !== '') {
+                // Mavjudini yangilash
+                const noteRef = ref(db, 'notes/' + editKey);
+                set(noteRef, {
+                    title: title || "Sarlavhasiz",
+                    content: content
+                });
+            } else {
+                // Yangi qo'shish
+                const newNoteRef = push(notesRef);
+                set(newNoteRef, {
+                    title: title || "Sarlavhasiz",
+                    content: content
+                });
+            }
+
+            closeModal();
+        }
+
+        window.deleteNote = function(id) {
+            if (confirm("Bu zametkani o'chirmoqchimisiz?")) {
+                const noteRef = ref(db, 'notes/' + id);
+                remove(noteRef);
+            }
+        }
+
+        window.copyNote = function(id) {
+            const note = notes.find(n => n.id === id);
+            if (note) {
+                const text = `${note.title}\n\n${note.content}`;
+                navigator.clipboard.writeText(text).then(() => {
+                    alert("Matn nusxalandi!");
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
